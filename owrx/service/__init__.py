@@ -317,6 +317,18 @@ class ServiceHandler(SdrSourceEventClient):
         elif mod == "packet":
             from csdr.chain.digimodes import PacketDemodulator
             return PacketDemodulator(service=True)
+        elif mod == "sonde-rs41":
+            from csdr.chain.digimodes import SondeDemodulator
+            return SondeDemodulator(service=True, sondetype="rs41", iq=True)
+        elif mod == "sonde-dfm9":
+            from csdr.chain.digimodes import SondeDemodulator
+            return SondeDemodulator(service=True, sondetype="dfm9", iq=True)
+        elif mod == "sonde-dfm17":
+            from csdr.chain.digimodes import SondeDemodulator
+            return SondeDemodulator(service=True, sondetype="dfm17", iq=True)
+        elif mod == "sonde-mxx":
+            from csdr.chain.digimodes import SondeDemodulator
+            return SondeDemodulator(service=True, sondetype="mxx", iq=True)
         elif mod == "ais":
             from csdr.chain.digimodes import PacketDemodulator
             return PacketDemodulator(service=True, ais=True)

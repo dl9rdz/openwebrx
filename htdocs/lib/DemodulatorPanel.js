@@ -166,8 +166,11 @@ DemodulatorPanel.prototype.disableDigiMode = function() {
 
 DemodulatorPanel.prototype.updatePanels = function() {
     var modulation = this.getDemodulator().get_secondary_demod();
-    $('#openwebrx-panel-digimodes').attr('data-mode', modulation);
     var mode = Modes.findByModulation(modulation);
+    if(['sonde-rs41', 'sonde-dfm9', 'sonde-dfm17', 'sonde-mxx'].indexOf(modulation) >= 0) {
+	modulation = 'sonde';
+    }
+    $('#openwebrx-panel-digimodes').attr('data-mode', modulation);
     toggle_panel("openwebrx-panel-digimodes", modulation && (!mode || mode.secondaryFft));
     // WSJT-X modes share the same panel
     toggle_panel("openwebrx-panel-wsjt-message", ['ft8', 'wspr', 'jt65', 'jt9', 'ft4', 'fst4', 'fst4w', "q65", "msk144"].indexOf(modulation) >= 0);
@@ -175,6 +178,8 @@ DemodulatorPanel.prototype.updatePanels = function() {
     toggle_panel("openwebrx-panel-hfdl-message", ['hfdl', 'vdl2', 'acars'].indexOf(modulation) >= 0);
     // Packet modes share the same panel
     toggle_panel("openwebrx-panel-packet-message", ['packet', 'ais'].indexOf(modulation) >= 0);
+    // Sonde modes share the same panel
+    toggle_panel("openwebrx-panel-sonde-message", ['sonde'].indexOf(modulation) >= 0);
     // These modes come with their own panels
     ['js8', 'page', 'pocsag', 'sstv', 'fax', 'ism', 'dsc', 'adsb', 'cwskimmer'].forEach(function(m) {
         toggle_panel('openwebrx-panel-' + m + '-message', modulation === m);
