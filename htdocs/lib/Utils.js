@@ -163,6 +163,33 @@ Utils.HHMMSS = function(t) {
     return pad(t.getUTCHours()) + ':' + pad(t.getUTCMinutes()) + ':' + pad(t.getUTCSeconds());
 };
 
+// Snap given frequency to the nearest step.
+Utils.snapFrequency = function(freq, step) {
+    if (step <= 0) {
+        return Math.round(freq);
+    } else if (step == 8330) {
+        return this.snapAirbandFrequency(freq);
+    } else {
+        return Math.round(freq / step) * step;
+    }
+};
+
+// Snap given frequency to the nearest airband frequency,
+// with respect to the uneven 8.33kHz step.
+Utils.snapAirbandFrequency = function(freq) {
+    freq = Math.round(freq);
+
+    var base = Math.floor(freq / 25000.0) * 25000;
+    var rem  = freq - base;
+
+    rem = rem < 4165?  0
+        : rem < 12500? 8330
+        : rem < 20835? 16670
+        : 25000;
+
+    return base + rem;
+};
+
 // Compute distance, in kilometers, between two latlons. Use receiver
 // location if the second latlon is not provided.
 Utils.distanceKm = function(p1, p2) {
@@ -261,6 +288,11 @@ function LS() {}
 // Return true of setting exist in storage.
 LS.has = function(key) {
     return localStorage && (localStorage.getItem(key)!=null);
+};
+
+// Remove item from local storage.
+LS.delete = function(key) {
+    if (localStorage) localStorage.removeItem(key);
 };
 
 // Save named UI setting to local storage.

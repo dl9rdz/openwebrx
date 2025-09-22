@@ -137,6 +137,15 @@ Shortcuts.init = function(target) {
         <div class="ks-item-txt">open documentation</div>
         <div class="ks-item-kbd">${this.keycap('H')}</div>
       </div>
+
+      <div class="ks-item">
+        <div class="ks-item-txt">clear bandpass settings</div>
+        <div class="ks-item-kbd">${this.keycap('|')}</div>
+      </div>
+      <div class="ks-item">
+        <div class="ks-item-txt">side-step current profile</div>
+        <div class="ks-item-kbd">${this.keycap('PageUp')}|${this.keycap('PageDown')}</div>
+      </div>
     </div>
     `);
 };
@@ -386,6 +395,11 @@ Shortcuts.handleKey = function(event) {
         case 'enter':
             // ENTER: Toggle receiver panel
             $('div.button[data-toggle-panel="openwebrx-panel-receiver"]')[0].click();
+            break;
+
+        case '|':
+            // Clear all saved bandpass settings
+            UI.resetAllBandpasses();
             break;
 
         case '/': case '?':

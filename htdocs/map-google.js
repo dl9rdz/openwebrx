@@ -98,6 +98,13 @@ MapManager.prototype.initializeMap = function(receiver_gps, api_key, weather_key
         $.getScript("https://maps.googleapis.com/maps/api/js?key=" + api_key).done(function() {
             // Create a map instance
             map = new google.maps.Map($('.openwebrx-map')[0], {
+                zoomControl:       true,
+                cameraControl:     false,
+                mapTypeControl:    true,
+                scaleControl:      true,
+                streetViewControl: true,
+                rotateControl:     true,
+                fullscreenControl: true,
                 center : receiverPos,
                 zoom   : 5,
             });

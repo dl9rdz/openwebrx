@@ -17,10 +17,11 @@ GIT_PYDIGIHAM=https://github.com/jketterl/pydigiham.git
 GIT_CSDR_ETI=https://github.com/luarvique/csdr-eti.git
 GIT_PYCSDR_ETI=https://github.com/luarvique/pycsdr-eti.git
 GIT_JS8PY=https://github.com/jketterl/js8py.git
-GIT_REDSEA=https://github.com/luarvique/redsea.git
 GIT_CWSKIMMER=https://github.com/luarvique/csdr-cwskimmer.git
 GIT_SOAPYSDRPLAY3=https://github.com/luarvique/SoapySDRPlay3.git
 GIT_OPENWEBRX=https://github.com/luarvique/openwebrx.git
+GIT_ACARSDEC=https://github.com/luarvique/acarsdec.git
+GIT_REDSEA=https://github.com/windytan/redsea.git
 
 BUILD_DIR=./owrx-build/`uname -m`
 OUTPUT_DIR=./owrx-output/`uname -m`
@@ -46,6 +47,8 @@ if [ "${1:-}" == "--ask" ]; then
 	[[ "$ret" == [Yy]* ]] && BUILD_JS8PY=y || BUILD_JS8PY=n
 	echo;read -n1 -p "Build Redsea? [yN] " ret
 	[[ "$ret" == [Yy]* ]] && BUILD_REDSEA=y || BUILD_REDSEA=n
+	echo;read -n1 -p "Build acarsdec? [yN] " ret
+	[[ "$ret" == [Yy]* ]] && BUILD_ACARSDEC=y || BUILD_ACARSDEC=n
 	echo;read -n1 -p "Build csdr-cwskimmer? [yN] " ret
 	[[ "$ret" == [Yy]* ]] && BUILD_CWSKIMMER=y || BUILD_CWSKIMMER=n
 	echo;read -n1 -p "Build SoapySDRPlay3? [yN] " ret
@@ -68,6 +71,7 @@ else
 	BUILD_PYCSDR_ETI=y
 	BUILD_JS8PY=y
 	BUILD_REDSEA=y
+	BUILD_ACARSDEC=y
 	BUILD_CWSKIMMER=y
 	CLEAN_OUTPUT=y
 fi
@@ -104,6 +108,7 @@ echo "csdr-eti: $BUILD_CSDR_ETI"
 echo "pycsdr-eti: $BUILD_PYCSDR_ETI"
 echo "js8py: $BUILD_JS8PY"
 echo "redsea: $BUILD_REDSEA"
+echo "acarsdec: $BUILD_ACARSDEC"
 echo "csdr-cwskimmer: $BUILD_CWSKIMMER"
 echo "SoapySDRPlay3: $BUILD_SOAPYSDRPLAY3"
 echo "OpenWebRx: $BUILD_OWRX"
@@ -229,6 +234,17 @@ if [ "${BUILD_REDSEA:-}" == "y" ]; then
 	# Not installing Redsea here since there are no further
 	# build steps depending on it
 	#sudo dpkg -i *redsea*.deb
+fi
+
+if [ "${BUILD_ACARSDEC:-}" == "y" ]; then
+	echo "##### Building acarsdec... #####"
+	git clone -b master "$GIT_ACARSDEC"
+	pushd acarsdec
+	dpkg-buildpackage -us -uc
+	popd
+	# Not installing acarsdec here since there are no further
+	# build steps depending on it
+	#sudo dpkg -i *acarsdec*.deb
 fi
 
 if [ "${BUILD_CWSKIMMER:-}" == "y" ]; then

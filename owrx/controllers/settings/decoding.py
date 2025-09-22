@@ -1,6 +1,7 @@
 from owrx.controllers.settings import SettingsFormController, SettingsBreadcrumb
 from owrx.form.section import Section
-from owrx.form.input import CheckboxInput, NumberInput, DropdownInput, Js8ProfileCheckboxInput, MultiCheckboxInput, Option, TextInput
+from owrx.form.input import CheckboxInput, NumberInput, DropdownInput, Js8ProfileCheckboxInput, MultiCheckboxInput, Option, TextInput, AgcInput
+from owrx.form.input.dab import DabOutputRateValues
 from owrx.form.input.wfm import WfmTauValues
 from owrx.form.input.wsjt import Q65ModeMatrix, WsjtDecodingDepthsInput
 from owrx.form.input.converter import OptionalConverter
@@ -31,6 +32,17 @@ class DecodingSettingsController(SettingsFormController):
                     "Secondary FFT size",
                     infotext="Secondary waterfall resolution in digital modes",
                     append="bins"
+                ),
+                AgcInput(
+                    "ssb_agc_profile",
+                    "SSB AGC profile",
+                    infotext="AGC profile used for LSB, USB, and CW analog modes",
+                ),
+                DropdownInput(
+                    "dab_output_rate",
+                    "DAB audio rate",
+                    DabOutputRateValues,
+                    infotext="Your local DAB station may use a different audio rate",
                 ),
                 DropdownInput(
                     "wfm_deemphasis_tau",
@@ -70,6 +82,27 @@ class DecodingSettingsController(SettingsFormController):
                     "digital_voice_nxdn_id_lookup",
                     'Enable lookup of NXDN ids in the <a href="https://www.radioid.net/" target="_blank">'
                     + "radioid</a> database to show callsigns and names",
+                ),
+            ),
+            Section(
+                "Background audio recording",
+                NumberInput(
+                    "rec_squelch",
+                    "Recording squelch level",
+                    validator=RangeValidator(5, 70),
+                    infotext="Signal-to-noise ratio (SNR) that triggers recording",
+                    append="dB",
+                ),
+                NumberInput(
+                    "rec_hang_time",
+                    "Recording squelch hang time",
+                    validator=RangeValidator(0, 5000),
+                    infotext="Time recording keeps going after signal disappears",
+                    append="ms",
+                ),
+                CheckboxInput(
+                    "rec_produce_silence",
+                    "Record silence when there is no signal",
                 ),
             ),
             Section(
@@ -125,9 +158,67 @@ class DecodingSettingsController(SettingsFormController):
                     validator=RangeValidator(30, 480),
                     append="lpm",
                 ),
+                NumberInput(
+                    "fax_min_length",
+                    "Minimum page length",
+                    validator=RangeValidator(50, 450),
+                    append="lines",
+                ),
+                NumberInput(
+                    "fax_max_length",
+                    "Maximum page length",
+                    validator=RangeValidator(500, 10000),
+                    append="lines",
+                ),
                 CheckboxInput("fax_postprocess", "Post-process received images to reduce noise"),
                 CheckboxInput("fax_color", "Receive color images"),
                 CheckboxInput("fax_am", "Use amplitude modulation"),
+            ),
+            Section(
+                "Image compression",
+                CheckboxInput("image_compress", "Compress final images to reduce space."),
+                DropdownInput(
+                    "image_compress_level",
+                    "PNG compression level",
+                    options=[
+                        Option("0", "(0) No compression - fastest processing, largest file size."),
+                        Option("1", "(1) Minimal compression - very fast, slightly smaller file."),
+                        Option("2", "(2) Low compression - fast, some size reduction."),
+                        Option("3", "(3) Moderate compression - decent balance between speed and size."),
+                        Option("4", "(4) Medium compression - starts to noticeably reduce file size."),
+                        Option("5", "(5) Balanced compression - reasonable file size and performance."),
+                        Option("6", "(6) Good compression - slower than default, better file size."),
+                        Option("7", "(7) High compression - much smaller files, slower to encode."),
+                        Option("8", "(8) Very high compression - slow, excellent file reduction."),
+                        Option("9", "(9) Maximum compression - smallest file size, slowest processing.")
+                    ]
+                ),
+                DropdownInput(
+                    "image_compress_filter",
+                    "PNG compression filter",
+                    options=[
+                        Option("0", "(0) None - no filtering, best for images with low entropy."),
+                        Option("1", "(1) Sub - filters based on differences with the left pixel."),
+                        Option("2", "(2) Up - filters based on differences with the pixel above."),
+                        Option("3", "(3) Average - average of left and above pixels, good general-purpose."),
+                        Option("4", "(4) Paeth - predicts using a linear function of surrounding pixels."),
+                        Option("5", "(5) Adaptive - automatically chooses best filter per row (default in many tools).")
+                    ]
+                ),
+                CheckboxInput("image_quantize", "Quantize final PNG images to reduce space."),
+                DropdownInput(
+                    "image_quantize_colors",
+                    "Palette colors",
+                    options=[
+                        Option("256", "(256) High fidelity - minimal loss, large file, best for preserving detail."),
+                        Option("128", "(128) Good quality - near-original appearance, moderate file size."),
+                        Option("64",  "(64) Balanced - visually similar to original, noticeable size savings."),
+                        Option("32",  "(32) Compact - some loss of gradients, still decent quality."),
+                        Option("16",  "(16) Low color - significant artifacts, big file reduction."),
+                        Option("8",   "(8) Very low - posterized look, very small file size."),
+                        Option("4",   "(4) Stylized - extreme quantization, strong visible artifacts.")
+                    ]
+                )
             ),
             Section(
                 "WSJT decoders",

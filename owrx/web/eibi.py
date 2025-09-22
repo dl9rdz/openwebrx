@@ -1,6 +1,6 @@
 from owrx.config import Config
 from owrx.bookmarks import Bookmark
-from owrx.web import WebScraper
+from owrx.web import WebAgent
 from datetime import datetime
 
 import threading
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 MAX_DISTANCE = 25000
 
 
-class EIBI(WebScraper):
+class EIBI(WebAgent):
     sharedInstance = None
     creationLock = threading.Lock()
 
@@ -26,6 +26,14 @@ class EIBI(WebScraper):
             if EIBI.sharedInstance is None:
                 EIBI.sharedInstance = EIBI("eibi.json")
         return EIBI.sharedInstance
+
+    @staticmethod
+    def start():
+        EIBI.getSharedInstance().startThread()
+
+    @staticmethod
+    def stop():
+        EIBI.getSharedInstance().stopThread()
 
     # Offset frequency for proper tuning
     @staticmethod
@@ -414,6 +422,7 @@ class EIBI(WebScraper):
 
         except Exception as e:
             logger.error("loadFromWeb() exception: {0}".format(e))
+            return None
 
         # Done
         return result

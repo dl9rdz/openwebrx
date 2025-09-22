@@ -80,8 +80,19 @@ BookmarkBar.prototype.replace_bookmarks = function(bookmarks, source, editable) 
 
 BookmarkBar.prototype.render = function(){
     var bookmarks = Object.values(this.bookmarks).reduce(function(l, v){ return l.concat(v); });
-    bookmarks = bookmarks.sort(function(a, b){ return a.frequency - b.frequency; });
-    var elements = bookmarks.map(function(b){
+    bookmarks = bookmarks.sort(function(a, b) {
+        if (a.frequency != b.frequency) {
+            return a.frequency - b.frequency;
+        } else if (a.source == 'dial_frequencies') {
+            // green bookmarks (bandplan) at the bottom
+            return -1;
+        } else {
+            // then yellow bookmarks (server), then blue ones (local)
+            return ((a.source == 'server') && (b.source == 'local')) ? -1 : 1;
+        }
+    });
+
+    var elements = bookmarks.map(function(b) {
         var $bookmark = $(
             '<div class="bookmark" data-source="' + b.source + '"' + (b.editable?' editable="editable"':'') + '>' +
                 '<div class="bookmark-actions">' +
@@ -97,9 +108,10 @@ BookmarkBar.prototype.render = function(){
         $bookmark.data(b);
         return $bookmark;
     });
+
     this.$container.find('.bookmark').remove();
     this.$container.append(elements);
-	this.position();
+    this.position();
 };
 
 BookmarkBar.prototype.showEditDialog = function(bookmark) {

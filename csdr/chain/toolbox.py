@@ -1,20 +1,21 @@
 from csdr.chain.demodulator import ServiceDemodulator, DialFrequencyReceiver
-from csdr.module.toolbox import Rtl433Module, MultimonModule, DumpHfdlModule, DumpVdl2Module, Dump1090Module, AcarsDecModule, RedseaModule, SatDumpModule, CwSkimmerModule
-from pycsdr.modules import FmDemod, AudioResampler, Convert, Agc, Squelch, RealPart
+from csdr.module.toolbox import Rtl433Module, MultimonModule, RedseaModule, CwSkimmerModule, LameModule
+from pycsdr.modules import FmDemod, Convert, Agc, Squelch, RealPart, SnrSquelch
 from pycsdr.types import Format
-from owrx.toolbox import TextParser, PageParser, SelCallParser, EasParser, IsmParser, RdsParser, CwSkimmerParser
-from owrx.aircraft import HfdlParser, Vdl2Parser, AdsbParser, AcarsParser
+from owrx.toolbox import TextParser, PageParser, SelCallParser, EasParser, IsmParser, RdsParser, CwSkimmerParser, Mp3Recorder
+from owrx.config import Config
 
-from datetime import datetime
-import os
+import math
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class IsmDemodulator(ServiceDemodulator, DialFrequencyReceiver):
-    def __init__(self, service: bool = False):
-        self.sampleRate = 250000
+    def __init__(self, sampleRate: int = 250000, service: bool = False):
+        self.sampleRate = sampleRate
         self.parser = IsmParser(service=service)
         workers = [
-            Agc(Format.COMPLEX_FLOAT),
-            Convert(Format.COMPLEX_FLOAT, Format.COMPLEX_SHORT),
             Rtl433Module(self.sampleRate, jsonOutput = True),
             self.parser,
         ]
@@ -44,10 +45,16 @@ class MultimonDemodulator(ServiceDemodulator, DialFrequencyReceiver):
         ]
         # If using squelch, insert Squelch() at the start
         if withSquelch:
-            # s-meter readings are available every 1024 samples
-            # the reporting interval is measured in those 1024-sample blocks
+            self.measurementsPerSec = 16
             self.readingsPerSec = 4
-            self.squelch = Squelch(5, int(self.sampleRate / (self.readingsPerSec * 1024)))
+            blockLength  = int(self.sampleRate / self.measurementsPerSec)
+            self.squelch = Squelch(Format.COMPLEX_FLOAT,
+                length      = blockLength,
+                decimation  = 5,
+                hangLength  = 2 * blockLength,
+                flushLength = 5 * blockLength,
+                reportInterval = int(self.measurementsPerSec / self.readingsPerSec)
+            )
             workers.insert(0, self.squelch)
 
         # Connect all the workers
@@ -111,96 +118,6 @@ class ZveiDemodulator(MultimonDemodulator):
         )
 
 
-class HfdlDemodulator(ServiceDemodulator, DialFrequencyReceiver):
-    def __init__(self, service: bool = False):
-        self.sampleRate = 12000
-        self.parser = HfdlParser(service=service)
-        workers = [
-            Agc(Format.COMPLEX_FLOAT),
-            DumpHfdlModule(self.sampleRate, jsonOutput = True),
-            self.parser,
-        ]
-        # Connect all the workers
-        super().__init__(workers)
-
-    def getFixedAudioRate(self) -> int:
-        return self.sampleRate
-
-    def supportsSquelch(self) -> bool:
-        return False
-
-    def setDialFrequency(self, frequency: int) -> None:
-        self.parser.setDialFrequency(frequency)
-
-
-class Vdl2Demodulator(ServiceDemodulator, DialFrequencyReceiver):
-    def __init__(self, service: bool = False):
-        self.sampleRate = 105000
-        self.parser = Vdl2Parser(service=service)
-        workers = [
-            Agc(Format.COMPLEX_FLOAT),
-            Convert(Format.COMPLEX_FLOAT, Format.COMPLEX_SHORT),
-            DumpVdl2Module(self.sampleRate, jsonOutput = True),
-            self.parser,
-        ]
-        # Connect all the workers
-        super().__init__(workers)
-
-    def getFixedAudioRate(self) -> int:
-        return self.sampleRate
-
-    def supportsSquelch(self) -> bool:
-        return False
-
-    def setDialFrequency(self, frequency: int) -> None:
-        self.parser.setDialFrequency(frequency)
-
-
-class AdsbDemodulator(ServiceDemodulator, DialFrequencyReceiver):
-    def __init__(self, service: bool = False, jsonFile: str = "/tmp/dump1090/aircraft.json"):
-        self.sampleRate = 2400000
-        self.parser = AdsbParser(service=service, jsonFile=jsonFile)
-        jsonFolder = os.path.dirname(jsonFile) if jsonFile else None
-        workers = [
-            Convert(Format.COMPLEX_FLOAT, Format.COMPLEX_SHORT),
-            Dump1090Module(rawOutput = True, jsonFolder = jsonFolder),
-            self.parser,
-        ]
-        # Connect all the workers
-        super().__init__(workers)
-
-    def getFixedAudioRate(self) -> int:
-        return self.sampleRate
-
-    def supportsSquelch(self) -> bool:
-        return False
-
-    def setDialFrequency(self, frequency: int) -> None:
-        self.parser.setDialFrequency(frequency)
-
-
-class AcarsDemodulator(ServiceDemodulator, DialFrequencyReceiver):
-    def __init__(self, service: bool = False):
-        self.sampleRate = 12500
-        self.parser = AcarsParser(service=service)
-        workers = [
-            Convert(Format.FLOAT, Format.SHORT),
-            AcarsDecModule(self.sampleRate, jsonOutput = True),
-            self.parser,
-        ]
-        # Connect all the workers
-        super().__init__(workers)
-
-    def getFixedAudioRate(self) -> int:
-        return self.sampleRate
-
-    def supportsSquelch(self) -> bool:
-        return False
-
-    def setDialFrequency(self, frequency: int) -> None:
-        self.parser.setDialFrequency(frequency)
-
-
 class RdsDemodulator(ServiceDemodulator, DialFrequencyReceiver):
     def __init__(self, sampleRate: int = 171000, rbds: bool = False):
         self.sampleRate = sampleRate
@@ -247,73 +164,40 @@ class CwSkimmerDemodulator(ServiceDemodulator, DialFrequencyReceiver):
         self.parser.setDialFrequency(frequency)
 
 
-class NoaaAptDemodulator(ServiceDemodulator):
-    def __init__(self, satellite: int = 19, service: bool = False):
-        d = datetime.utcnow()
-        self.outFolder  = "/tmp/satdump/NOAA{0}-{1}".format(satellite, d.strftime('%y%m%d-%H%M%S'))
-        self.sampleRate = 50000
+class AudioRecorder(ServiceDemodulator, DialFrequencyReceiver):
+    def __init__(self, sampleRate: int = 24000, service: bool = False):
+        # Get settings
+        pm = Config.get()
+        squelchLevel = pm["rec_squelch"]
+        hangTime = int(sampleRate * pm["rec_hang_time"] / 1000)
+        produceSilence = pm["rec_produce_silence"]
+        # Initialize state
+        self.sampleRate = sampleRate
+        self.recorder = Mp3Recorder(service)
+        self.squelch = SnrSquelch(Format.FLOAT, 2048, 512, hangTime, 0, 1, produceSilence)
+        # Set recording squelch level
+        self.setSquelchLevel(squelchLevel)
         workers = [
-            SatDumpModule(mode = "noaa_apt",
-                sampleRate = self.sampleRate,
-                outFolder  = self.outFolder,
-                options    = {
-                    "satellite_number" : satellite,
-                    "start_timestamp"  : int(d.timestamp())
-                }
-            )
+            self.squelch,
+            Convert(Format.FLOAT, Format.SHORT),
+            LameModule(sampleRate),
+            self.recorder,
         ]
         # Connect all the workers
         super().__init__(workers)
+
+    def _convertToLinear(self, db: float) -> float:
+        return float(math.pow(10, db / 10))
+
+    def setSquelchLevel(self, level: float) -> None:
+        self.squelch.setSquelchLevel(self._convertToLinear(level))
 
     def getFixedAudioRate(self) -> int:
         return self.sampleRate
 
     def supportsSquelch(self) -> bool:
-        return False
+        return True
 
-
-class MeteorLrptDemodulator(ServiceDemodulator):
-    def __init__(self, symbolrate: int = 72, service: bool = False):
-        d = datetime.utcnow()
-        self.outFolder  = "/tmp/satdump/METEOR-{0}".format(d.strftime('%y%m%d-%H%M%S'))
-        self.sampleRate = 150000
-        mode = "meteor_m2-x_lrpt_80k" if symbolrate == 80 else "meteor_m2-x_lrpt"
-        workers = [
-            SatDumpModule(mode = mode,
-                sampleRate = self.sampleRate,
-                outFolder  = self.outFolder,
-                options    = { "start_timestamp" : int(d.timestamp()) }
-            )
-        ]
-        # Connect all the workers
-        super().__init__(workers)
-
-    def getFixedAudioRate(self) -> int:
-        return self.sampleRate
-
-    def supportsSquelch(self) -> bool:
-        return False
-
-
-class ElektroLritDemodulator(ServiceDemodulator):
-    def __init__(self, symbolrate: int = 72, service: bool = False):
-        d = datetime.utcnow()
-        self.outFolder  = "/tmp/satdump/ELEKTRO-{0}".format(d.strftime('%y%m%d-%H%M%S'))
-        self.sampleRate = 400000
-        mode = "elektro_lrit"
-        workers = [
-            SatDumpModule(mode = mode,
-                sampleRate = self.sampleRate,
-                frequency = 1691000000,
-                outFolder  = self.outFolder,
-                options    = { "start_timestamp" : int(d.timestamp()) }
-            )
-        ]
-        # Connect all the workers
-        super().__init__(workers)
-
-    def getFixedAudioRate(self) -> int:
-        return self.sampleRate
-
-    def supportsSquelch(self) -> bool:
-        return False
+    def setDialFrequency(self, frequency: int) -> None:
+        # Not restarting LAME, it is ok to continue on a new file
+        self.recorder.setDialFrequency(frequency)

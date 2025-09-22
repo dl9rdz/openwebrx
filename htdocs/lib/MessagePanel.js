@@ -589,6 +589,10 @@ AdsbMessagePanel.prototype.pushMessage = function(msg) {
         : entry.icao?     Utils.linkifyIcao(entry.icao)
         : '';
 
+        // Add country flag
+        var flag = entry.ccode && Lookup.ccode2flag(entry.ccode);
+        if (flag) aircraft = flag + '&nbsp;' + aircraft;
+
         // Altitude and climb / descent
         var alt  = entry.altitude? '' + entry.altitude : '';
         if (entry.vspeed) {
@@ -748,7 +752,7 @@ IsmMessagePanel = function(el) {
 IsmMessagePanel.prototype = Object.create(MessagePanel.prototype);
 
 IsmMessagePanel.prototype.supportsMessage = function(message) {
-    return message['mode'] === 'ISM';
+    return (message['mode'] === 'ISM') || (message['mode'] === 'WMBUS');
 };
 
 IsmMessagePanel.prototype.render = function() {
@@ -768,7 +772,7 @@ IsmMessagePanel.prototype.formatAttr = function(msg, key) {
     return('<td class="attr" colspan="2">' +
         '<div style="border-bottom:1px dotted;">' +
         '<span style="float:left;">' + key + '</span>' +
-        '<span style="float:right;">' + msg[key] + '</span>' +
+        '<span style="float:right;word-break:break-all;">' + msg[key] + '</span>' +
         '</div></td>'
     );
 };
@@ -932,6 +936,13 @@ FaxMessagePanel.prototype.pushMessage = function(msg) {
         this.ctx    = $(this.el).find('canvas').get(-1).getContext("2d");
         this.width  = msg.width;
         this.height = msg.height;
+    }
+    else if(msg.width>0 && msg.height>0 && msg.line>=0 && msg.ended) {
+        const canvas  = $(this.el).find('canvas').get(-1);
+        const image   = this.ctx.getImageData(0, 0, canvas.width, canvas.height);
+        canvas.height = msg.line;
+        this.height   = msg.line;
+        this.ctx.putImageData(image, 0, 0);
     }
     else if(msg.width>0 && msg.height>0 && msg.line>=0 && msg.hasOwnProperty('pixels')) {
         // Will copy pixels to img

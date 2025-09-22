@@ -6,12 +6,13 @@ function UI() {}
 
 // We start with these values
 UI.theme = 'default';
+UI.theme0 = 'default';
 UI.wfTheme = null;
 UI.frame = false;
 UI.opacity = 100;
 UI.volume = -1;
 UI.volumeMuted = -1;
-UI.nrThreshold = 0;
+UI.nrThreshold = -20;
 UI.nrEnabled = false;
 UI.wheelSwap = false;
 UI.spectrum = false;
@@ -27,14 +28,14 @@ UI.sections = {
 
 // Load UI settings from local storage.
 UI.loadSettings = function() {
-    this.setTheme(LS.has('ui_theme')? LS.loadStr('ui_theme') : 'default');
+    this.setTheme(LS.has('ui_theme')? LS.loadStr('ui_theme') : this.theme0);
     this.setOpacity(LS.has('ui_opacity')? LS.loadInt('ui_opacity') : 100);
     this.toggleFrame(LS.has('ui_frame')? LS.loadBool('ui_frame') : false);
     this.toggleWheelSwap(LS.has('ui_wheel')? LS.loadBool('ui_wheel') : false);
     this.toggleSpectrum(LS.has('ui_spectrum')? LS.loadBool('ui_spectrum') : false);
     this.toggleBandplan(LS.has('ui_bandplan')? LS.loadBool('ui_bandplan') : false);
     this.setWfTheme(LS.has('wf_theme')? LS.loadStr('wf_theme') : 'default');
-    this.setNR(LS.has('nr_threshold')? LS.loadInt('nr_threshold') : false);
+    this.setNR(LS.has('nr_threshold')? LS.loadInt('nr_threshold') : 0);
     this.toggleNR(LS.has('nr_enabled')? LS.loadBool('nr_enabled') : false);
 
     // Toggle UI sections
@@ -85,14 +86,16 @@ UI.getDemodulator = function() {
 }
 
 UI.getModulation = function() {
-    var mode1 = this.getDemodulator().get_secondary_demod();
-    var mode2 = this.getDemodulator().get_modulation();
+    var demod = this.getDemodulator();
+    var mode1 = demod? demod.get_secondary_demod() : null;
+    var mode2 = demod? demod.get_modulation() : null;
     return !!mode1? mode1 : !mode2? '' : mode2;
 };
 
 UI.getUnderlying = function() {
-    var mode1 = this.getDemodulator().get_secondary_demod();
-    var mode2 = this.getDemodulator().get_modulation();
+    var demod = this.getDemodulator();
+    var mode1 = demod? demod.get_secondary_demod() : null;
+    var mode2 = demod? demod.get_modulation() : null;
     return !mode1? '' : !mode2? '' : mode2;
 };
 
@@ -105,35 +108,36 @@ UI.setModulation = function(mode, underlying) {
 //
 
 UI.getOffsetFrequency = function(x) {
-    if (typeof(x) === 'undefined') {
-        // No argument: return currently tuned offset
-        return this.getDemodulator().get_offset_frequency();
-    } else {
-        // Pointer position: return offset under pointer
-        // Use rounded absolute frequency to get offset
-        return this.getFrequency(x) - center_freq;
-    }
+    return this.getFrequency(x) - center_freq;
 };
 
 UI.getFrequency = function(x) {
     if (typeof(x) === 'undefined') {
+        // When in CW mode, offset by 800Hz
+        var delta = this.getModulation() === 'cw'? 800 : 0;
         // No argument: return currently tuned frequency
-        return center_freq + this.getOffsetFrequency();
+        var demod = this.getDemodulator();
+        return demod? demod.get_offset_frequency() + center_freq + delta : 0;
     } else {
         // Pointer position: return frequency under pointer
         x = x / canvas_container.clientWidth;
         x = center_freq + (bandwidth * x) - (bandwidth / 2);
-        return tuning_step>0?
-            Math.round(x / tuning_step) * tuning_step : Math.round(x);
+        return Utils.snapFrequency(x, tuning_step);
     }
 };
 
 UI.setOffsetFrequency = function(offset) {
-    return this.getDemodulator().set_offset_frequency(offset);
+    return this.setFrequency(center_freq + offset);
 };
 
-UI.setFrequency = function(freq) {
-    return this.setOffsetFrequency(freq - center_freq);
+UI.setFrequency = function(freq, snap = true) {
+    // When in CW mode, offset by 800Hz
+    var delta = this.getModulation() === 'cw'? 800 : 0;
+    // Snap frequency to the tuning step
+    if (snap) freq = Utils.snapFrequency(freq, tuning_step);
+    // Tune to the frequency offset
+    var demod = this.getDemodulator();
+    return demod? demod.set_offset_frequency(freq - delta - center_freq) : false;
 };
 
 UI.tuneBookmark = function(b) {
@@ -142,10 +146,9 @@ UI.tuneBookmark = function(b) {
 
     //console.log("TUNE: " + b.name + " at " + b.frequency + ": " + b.modulation);
 
-    // Tune to the bookmark frequency
-    var freq = b.modulation === 'cw'? b.frequency - 800 : b.frequency;
-    UI.setFrequency(freq, b.modulation);
+    // Tune to the bookmark frequency, do not snap
     UI.setModulation(b.modulation, b.underlying);
+    UI.setFrequency(b.frequency, false);
 
     // Done
     return true;
@@ -199,6 +202,35 @@ UI.toggleMute = function(on) {
 };
 
 //
+// Bandpass Controls
+//
+
+// Clear saved bandpasses
+UI.resetAllBandpasses = function() {
+    // Delete all saved bandpass data
+    Modes.getModes().forEach(function(mode, i) {
+        LS.delete('bp-' + mode.modulation);
+    });
+
+    // Reset current bandpass to default
+    var mode = Modes.findByModulation(this.getModulation());
+    var bp = mode? mode.bandpass : null; 
+    if (bp) this.getDemodulator().setBandpass(bp);
+};
+
+// Set bandpass for given modulation.
+UI.saveBandpass = function(mode, low, high) {
+    var bp = { low_cut: low, high_cut: high };
+    LS.save('bp-' + mode, JSON.stringify(bp));
+};
+
+// Get saved bandpass for given modulation.
+UI.loadBandpass = function(mode) {
+    // Load bandpass from storage as needed
+    return JSON.parse(LS.loadStr('bp-' + mode)) || null;
+};
+
+//
 // Noise Reduction Controls
 //
 
@@ -208,7 +240,7 @@ UI.setNR = function(x) {
     if (this.nrThreshold != x) {
         this.nrThreshold = x;
         LS.save('nr_threshold', x);
-        $('#openwebrx-panel-nr').attr('title', 'Noise level (' + x + ' dB)').val(x);
+        $('#openwebrx-panel-nr').attr('title', 'Noise reduction level (' + x + ' dB)').val(x);
         this.updateNR();
     }
 };
@@ -379,6 +411,11 @@ UI.setOpacity = function(x) {
     }
 };
 
+// Set initial user interface theme
+UI.setDefaultTheme = function(theme) {
+    this.theme0 = theme;
+}
+
 // Set user interface theme.
 UI.setTheme = function(theme) {
     // Do not set twice
@@ -391,6 +428,9 @@ UI.setTheme = function(theme) {
     // Set selector
     var lb = $('#openwebrx-themes-listbox');
     lb.val(theme);
+
+    // Use the initial theme if not provided with one
+    if (!theme) theme = this.theme0;
 
     // Remove existing theme
     var opts = lb[0].options;
@@ -432,8 +472,7 @@ UI.setDefaultWfTheme = function(colors) {
 
     // If default theme currently used, update waterfall
     if (this.wfTheme === 'default') {
-        this.wfTheme = null;
-        this.setWfTheme('default');
+        Waterfall.setTheme(this.wfThemes[this.wfTheme]);
     }
 };
 

@@ -60,7 +60,7 @@ function zoomOutTotal() {
 function tuneBySteps(steps) {
     steps = Math.round(steps);
     if (steps != 0) {
-        UI.setOffsetFrequency(UI.getOffsetFrequency() + steps * tuning_step);
+        UI.setFrequency(UI.getFrequency() + steps * tuning_step);
     }
 }
 
@@ -244,19 +244,6 @@ function scale_canvas_mousedown(evt) {
     evt.preventDefault();
 }
 
-function scale_offset_freq_from_px(x, visible_range) {
-    if (typeof visible_range === "undefined") visible_range = get_visible_freq_range();
-
-    var f = (visible_range.start + visible_range.bw * (x / waterfallWidth())) - center_freq;
-
-    if (tuning_step <= 0) {
-        return f;
-    } else {
-        f = Math.round((center_freq + f) / tuning_step) * tuning_step;
-        return f - center_freq;
-    }
-}
-
 function scale_canvas_mousemove(evt) {
     var event_handled = false;
     var i;
@@ -272,16 +259,17 @@ function scale_canvas_mousemove(evt) {
     else if (scale_canvas_drag_params.drag) {
         //call the drag_move for all demodulators (and they will decide if they're dragged)
         for (i = 0; i < demodulators.length; i++) event_handled |= demodulators[i].envelope.drag_move(evt.pageX);
-        if (!event_handled) demodulators[0].set_offset_frequency(scale_offset_freq_from_px(evt.pageX));
+        if (!event_handled)
+            UI.setFrequency(UI.getFrequency(get_relative_x(evt)));
     }
 }
 
 function frequency_container_mousemove(evt) {
-    var frequency = center_freq + scale_offset_freq_from_px(evt.pageX);
-    UI.getDemodulatorPanel().setMouseFrequency(frequency);
+    var freq = UI.getFrequency(get_relative_x(evt));
+    UI.getDemodulatorPanel().setMouseFrequency(freq);
 }
 
-function scale_canvas_end_drag(x) {
+function scale_canvas_end_drag(evt) {
     scale_canvas.style.cursor = "default";
     scale_canvas_drag_params.drag = false;
     scale_canvas_drag_params.mouse_down = false;
@@ -289,14 +277,14 @@ function scale_canvas_end_drag(x) {
     var demodulators = getDemodulators();
     for (var i = 0; i < demodulators.length; i++) event_handled |= demodulators[i].envelope.drag_end();
     if (!event_handled) {
-        demodulators[0].set_offset_frequency(scale_offset_freq_from_px(x));
+        UI.setFrequency(UI.getFrequency(get_relative_x(evt)));
         UI.toggleScanner(false);
     }
 }
 
 function scale_canvas_mouseup(evt) {
     if (evt.button == 0)
-        scale_canvas_end_drag(evt.pageX);
+        scale_canvas_end_drag(evt);
     else
         scale_canvas_drag_params.mouse2_down = false;
 }
@@ -687,9 +675,10 @@ function canvas_mousedown(evt) {
 
 function canvas_mousemove(evt) {
     if (!waterfall_setup_done) return;
-    var relativeX = get_relative_x(evt);
     if (!canvas_mouse_down) {
-        UI.getDemodulatorPanel().setMouseFrequency(UI.getFrequency(relativeX));
+        UI.getDemodulatorPanel().setMouseFrequency(
+            UI.getFrequency(get_relative_x(evt))
+        );
     } else {
         if (!canvas_drag && Math.abs(evt.pageX - canvas_drag_start_x) > canvas_drag_min_delta) {
             canvas_drag = true;
@@ -726,17 +715,14 @@ function canvas_mouseup(evt) {
             canvas_mouse2_down = 0;
     } else {
         if (!waterfall_setup_done) return;
-        var relativeX = get_relative_x(evt);
 
         if (!canvas_drag) {
-            var f = UI.getOffsetFrequency(relativeX);
-            // For CW, move offset 800Hz below the actual carrier
-            if (UI.getModulation() === 'cw') f = f - 800;
-            UI.setOffsetFrequency(f);
+            UI.setFrequency(UI.getFrequency(get_relative_x(evt)));
             UI.toggleScanner(false);
         } else {
             canvas_end_drag();
         }
+
         canvas_mouse_down = false;
     }
 }
@@ -752,27 +738,29 @@ function zoom_center_where_calc(screenposX) {
 
 function get_relative_x(evt) {
     var relativeX = evt.offsetX || evt.layerX;
+
     if ($(evt.target).closest(canvas_container).length) return relativeX;
-    // compensate for the frequency scale, since that is not resized by the browser.
-    var relatives = $(evt.target).closest('#openwebrx-frequency-container').map(function(){
-        return evt.pageX - this.offsetLeft;
-    });
-    if (relatives.length) relativeX = relatives[0];
+
+    // Compensate for the frequency scale, as it is not resized by the browser.
+    var relatives = $(evt.target).closest('#openwebrx-frequency-container');
+    if (relatives.length) relativeX = evt.pageX - relatives[0].offsetLeft;
 
     return relativeX - zoom_offset_px;
 }
 
 function canvas_mousewheel(evt) {
     if (!waterfall_setup_done) return;
-    var relativeX = get_relative_x(evt);
-    var dir = (evt.deltaY / Math.abs(evt.deltaY)) > 0;
+
+    // Wheel direction
+    var dir = evt.deltaY / Math.abs(evt.deltaY) > 0;
 
     // Zoom when mouse button down, tune otherwise
     // (optionally, invert this behavior)
     var zoom_me = (canvas_mouse2_down > 0) || evt.shiftKey?
         !UI.getWheelSwap() : UI.getWheelSwap();
+
     if (zoom_me) {
-        zoom_step(dir, relativeX, zoom_center_where_calc(evt.pageX));
+        zoom_step(dir, get_relative_x(evt), zoom_center_where_calc(evt.pageX));
     } else {
         tuneBySteps(dir? -1:1);
     }
@@ -883,6 +871,9 @@ function on_ws_recv(evt) {
 
                         if ('waterfall_colors' in config)
                             UI.setDefaultWfTheme(config['waterfall_colors']);
+
+                        if ('ui_theme' in config)
+                            UI.setDefaultTheme(config['ui_theme']);
 
                         var initial_demodulator_params = {};
                         if ('start_mod' in config)
@@ -1417,9 +1408,6 @@ function openwebrx_init() {
     bookmarks = new BookmarkBar();
     initSliders();
 
-    // Initialize waterfall colors
-    UI.setWfTheme('default');
-
     // Create bookmark scanner
     scanner = new Scanner(bookmarks, 1000);
 
@@ -1660,7 +1648,7 @@ function secondary_demod_init() {
         .mousedown(secondary_demod_canvas_container_mousedown)
         .mouseenter(secondary_demod_canvas_container_mousein)
         .mouseleave(secondary_demod_canvas_container_mouseleave);
-    ['wsjt', 'packet', 'sonde', 'pocsag', 'page', 'sstv', 'fax', 'ism', 'hfdl', 'adsb', 'dsc'].forEach(function(id){
+    ['wsjt', 'packet', 'sonde', 'pocsag', 'page', 'sstv', 'fax', 'ism', 'hfdl', 'adsb', 'dsc', 'cwskimmer'].forEach(function(id){
         $('#openwebrx-panel-' + id + '-message')[id + 'MessagePanel']();
     })
     $('#openwebrx-panel-js8-message').js8();
@@ -1710,7 +1698,7 @@ function secondary_demod_update_marker() {
 
 function secondary_demod_update_channel_freq_from_event(evt) {
     if (typeof evt !== "undefined") {
-        var relativeX = (evt.offsetX) ? evt.offsetX : evt.layerX;
+        var relativeX = evt.offsetX || evt.layerX;
         secondary_demod_channel_freq = secondary_demod_low_cut +
             (relativeX / $(secondary_demod_canvas_container).width()) * (secondary_demod_high_cut - secondary_demod_low_cut);
     }

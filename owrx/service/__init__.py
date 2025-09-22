@@ -295,6 +295,9 @@ class ServiceHandler(SdrSourceEventClient):
         elif demod == "am":
             from csdr.chain.analog import Am
             return Am()
+        elif demod == "sam":
+            from csdr.chain.analog import SAm
+            return SAm()
         elif demod in ["usb", "lsb", "cw"]:
             from csdr.chain.analog import Ssb
             return Ssb()
@@ -352,33 +355,36 @@ class ServiceHandler(SdrSourceEventClient):
             return EasDemodulator(service=True)
         elif mod == "ism":
             from csdr.chain.toolbox import IsmDemodulator
-            return IsmDemodulator(service=True)
+            return IsmDemodulator(250000, service=True)
+        elif mod == "wmbus":
+            from csdr.chain.toolbox import IsmDemodulator
+            return IsmDemodulator(1200000, service=True)
         elif mod == "hfdl":
-            from csdr.chain.toolbox import HfdlDemodulator
+            from csdr.chain.aircraft import HfdlDemodulator
             return HfdlDemodulator(service=True)
         elif mod == "vdl2":
-            from csdr.chain.toolbox import Vdl2Demodulator
+            from csdr.chain.aircraft import Vdl2Demodulator
             return Vdl2Demodulator(service=True)
         elif mod == "acars":
-            from csdr.chain.toolbox import AcarsDemodulator
+            from csdr.chain.aircraft import AcarsDemodulator
             return AcarsDemodulator(service=True)
         elif mod == "adsb":
-            from csdr.chain.toolbox import AdsbDemodulator
+            from csdr.chain.aircraft import AdsbDemodulator
             return AdsbDemodulator(service=True)
+        elif mod == "audio":
+            from csdr.chain.toolbox import AudioRecorder
+            return AudioRecorder(service=True)
         elif mod == "noaa-apt-15":
-            from csdr.chain.toolbox import NoaaAptDemodulator
+            from csdr.chain.satellite import NoaaAptDemodulator
             return NoaaAptDemodulator(satellite=15, service=True)
-        elif mod == "noaa-apt-18":
-            from csdr.chain.toolbox import NoaaAptDemodulator
-            return NoaaAptDemodulator(satellite=18, service=True)
         elif mod == "noaa-apt-19":
-            from csdr.chain.toolbox import NoaaAptDemodulator
+            from csdr.chain.satellite import NoaaAptDemodulator
             return NoaaAptDemodulator(satellite=19, service=True)
         elif mod == "meteor-lrpt":
-            from csdr.chain.toolbox import MeteorLrptDemodulator
+            from csdr.chain.satellite import MeteorLrptDemodulator
             return MeteorLrptDemodulator(service=True)
         elif mod == "elektro-lrit":
-            from csdr.chain.toolbox import ElektroLritDemodulator
+            from csdr.chain.satellite import ElektroLritDemodulator
             return ElektroLritDemodulator(service=True)
 
         raise ValueError("unsupported service modulation: {}".format(mod))

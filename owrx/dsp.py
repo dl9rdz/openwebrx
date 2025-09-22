@@ -12,7 +12,7 @@ from csdr.chain.clientaudio import ClientAudioChain
 from csdr.chain.fft import FftChain
 from csdr.chain.dummy import DummyDemodulator
 from pycsdr.modules import Buffer, Writer
-from pycsdr.types import Format
+from pycsdr.types import Format, AgcProfile
 from typing import Union, Optional
 from io import BytesIO
 from abc import ABC, abstractmethod
@@ -472,6 +472,8 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
                 "wfm_rds_rbds",
                 "digital_voice_codecserver",
                 "rig_enabled",
+                "dab_output_rate",
+                "ssb_agc_profile"
             ),
         )
 
@@ -596,7 +598,7 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             return SAm()
         elif demod in ["usb", "lsb", "cw"]:
             from csdr.chain.analog import Ssb
-            return Ssb()
+            return Ssb(AgcProfile(self.props["ssb_agc_profile"]))
         elif demod == "dmr":
             from csdr.chain.digiham import Dmr
             return Dmr(self.props["digital_voice_codecserver"])
@@ -623,7 +625,7 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             return FreeDV()
         elif demod == "dab":
             from csdr.chain.dablin import Dablin
-            return Dablin()
+            return Dablin(self.props["dab_output_rate"])
         elif demod == "empty":
             from csdr.chain.analog import Empty
             return Empty()
@@ -750,33 +752,42 @@ class DspManager(SdrSourceEventClient, ClientDemodulatorSecondaryDspEventClient)
             return FaxDemodulator()
         elif mod == "ism":
             from csdr.chain.toolbox import IsmDemodulator
-            return IsmDemodulator()
+            return IsmDemodulator(250000)
+        elif mod == "wmbus":
+            # WMBus likes 1.2Msps, which does not work for other ISM
+            from csdr.chain.toolbox import IsmDemodulator
+            return IsmDemodulator(1200000)
         elif mod == "hfdl":
-            from csdr.chain.toolbox import HfdlDemodulator
+            from csdr.chain.aircraft import HfdlDemodulator
             return HfdlDemodulator()
         elif mod == "vdl2":
-            from csdr.chain.toolbox import Vdl2Demodulator
+            from csdr.chain.aircraft import Vdl2Demodulator
             return Vdl2Demodulator()
         elif mod == "acars":
-            from csdr.chain.toolbox import AcarsDemodulator
+            from csdr.chain.aircraft import AcarsDemodulator
             return AcarsDemodulator()
         elif mod == "adsb":
-            from csdr.chain.toolbox import AdsbDemodulator
+            from csdr.chain.aircraft import AdsbDemodulator
             return AdsbDemodulator()
+        elif mod == "audio":
+            # this should only run as a service though
+            from csdr.chain.toolbox import AudioRecorder
+            return AudioRecorder()
         elif mod == "noaa-apt-15":
-            from csdr.chain.toolbox import NoaaAptDemodulator
+            # this should only run as a service though
+            from csdr.chain.satellite import NoaaAptDemodulator
             return NoaaAptDemodulator(satellite=15)
-        elif mod == "noaa-apt-18":
-            from csdr.chain.toolbox import NoaaAptDemodulator
-            return NoaaAptDemodulator(satellite=18)
         elif mod == "noaa-apt-19":
-            from csdr.chain.toolbox import NoaaAptDemodulator
+            # this should only run as a service though
+            from csdr.chain.satellite import NoaaAptDemodulator
             return NoaaAptDemodulator(satellite=19)
         elif mod == "meteor-lrpt":
-            from csdr.chain.toolbox import MeteorLrptDemodulator
+            # this should only run as a service though
+            from csdr.chain.satellite import MeteorLrptDemodulator
             return MeteorLrptDemodulator()
         elif mod == "elektro-lrit":
-            from csdr.chain.toolbox import ElektroLritDemodulator
+            # this should only run as a service though
+            from csdr.chain.satellite import ElektroLritDemodulator
             return ElektroLritDemodulator()
 
     def setSecondaryDemodulator(self, mod):

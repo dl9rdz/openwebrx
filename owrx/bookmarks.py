@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from owrx.config.core import CoreConfig
+from owrx.config import Config
 import json
 import os.path
 import os
@@ -87,16 +88,40 @@ class Bookmarks(object):
         self.file_modified = None
         self.bookmarks = []
         self.subscriptions = []
+        # Find all known bookmark files
+        self.fileList = self._getBookmarkFiles()
+        # Subscribe to region changes
+        Config().get().wireProperty("bandplan_region", self._updateRegion)
+
+    def _updateRegion(self, region):
+        # Refresh the list of known bookmark files
+        self.fileList = self._getBookmarkFiles()
+        # Make sure bookmarks are refreshed the next time they are queried
+        self.file_modified = None
+
+    def _getBookmarkFiles(self):
         # Known bookmark files, starting with the main file
-        self.fileList = [Bookmarks._getBookmarksFile(), "/etc/openwebrx/bookmarks.json", "bookmarks.json"]
+        result = [Bookmarks._getBookmarksFile(), "/etc/openwebrx/bookmarks.json", "bookmarks.json"]
         # Find additional bookmark files in the bookmarks.d folder
         try:
             bookmarksDir = "/etc/openwebrx/bookmarks.d"
-            self.fileList += [ bookmarksDir + "/" + file
+            result += [ bookmarksDir + "/" + file
                 for file in os.listdir(bookmarksDir) if file.endswith(".json")
             ]
         except Exception:
             pass
+        # Find additional bookmark files in the region-specific folder
+        try:
+            region = Config.get()["bandplan_region"]
+            if region > 0:
+                bookmarksDir = "/etc/openwebrx/bookmarks.d/r{0}".format(region)
+            result += [ bookmarksDir + "/" + file
+                for file in os.listdir(bookmarksDir) if file.endswith(".json")
+            ]
+        except Exception:
+            pass
+        # Return the final list of bookmark files
+        return result
 
     def _refresh(self):
         modified = self._getFileModifiedTimestamp()

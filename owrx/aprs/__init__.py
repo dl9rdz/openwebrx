@@ -568,6 +568,8 @@ class MicEParser(object):
                         return comment[1:-1], {"manufacturer": "Kenwood", "device": "TH-D72"}
                     if comment[-1] == "^":
                         return comment[1:-1], {"manufacturer": "Kenwood", "device": "TH-D74"}
+                    if comment[-1] == "&":
+                        return comment[1:-1], {"manufacturer": "Kenwood", "device": "TH-D75"}
                 return comment[1:], {"manufacturer": "Kenwood", "device": "TH-D7A"}
             if comment[0] == "]":
                 if len(comment) > 1 and comment[-1] == "=":
@@ -576,14 +578,18 @@ class MicEParser(object):
             if len(comment) > 2 and (comment[0] == "`" or comment[0] == "'"):
                 if comment[-2] == "_":
                     devices = {
-                        "b": "VX-8",
+                        ")": "FTM-100D",
+                        "2": "FTM-200D",
+                        "1": "FTM-300D",
                         '"': "FTM-350",
+                        "4": "FTM-500D",
+                        "%": "FTM-400DR",
+                        "b": "VX-8",
                         "#": "VX-8G",
                         "$": "FT1D",
-                        "%": "FTM-400DR",
-                        ")": "FTM-100D",
                         "(": "FT2D",
                         "0": "FT3D",
+                        "3": "FT5D",
                     }
                     return comment[1:-2], {"manufacturer": "Yaesu", "device": devices.get(comment[-1], "Unknown")}
                 if comment[-2:] == " X":

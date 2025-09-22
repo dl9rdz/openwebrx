@@ -20,7 +20,7 @@ Filter.prototype.getLimits = function() {
     } else if (this.demodulator.get_secondary_demod() === "ism") {
         max_bw = 600000;
     } else {
-        max_bw = (audioEngine.getOutputRate() / 2) - 1;
+        max_bw = parseInt(audioEngine.getOutputRate() / 2);
     }
     return {
         high: max_bw,
@@ -234,7 +234,7 @@ Envelope.prototype.wheel = function(x, dir, modifier){
     return true;
 };
 
-//******* class Demodulator_default_analog *******
+// ******* class Demodulator_default_analog *******
 // This can be used as a base for basic audio demodulators.
 // It already supports most basic modulations used for ham radio and commercial services: AM/FM/LSB/USB
 
@@ -250,10 +250,15 @@ function Demodulator(offset_frequency, modulation) {
     this.started = false;
     this.state = {};
     this.secondary_demod = false;
+
     var mode = Modes.findByModulation(modulation);
-    this.low_cut = mode && mode.bandpass? mode.bandpass.low_cut : null;
-    this.high_cut = mode && mode.bandpass? mode.bandpass.high_cut : null;
     this.ifRate = mode && mode.ifRate;
+
+    // Get bandpass from local storage first, then try the default bandpass
+    var bp = UI.loadBandpass(modulation);
+    this.low_cut  = bp? bp.low_cut  : mode && mode.bandpass? mode.bandpass.low_cut  : null;
+    this.high_cut = bp? bp.high_cut : mode && mode.bandpass? mode.bandpass.high_cut : null;
+
     this.listeners = {
         "frequencychange": [],
         "squelchchange": []
@@ -379,17 +384,15 @@ Demodulator.prototype.setAudioServiceId = function(audio_service_id) {
 }
 
 Demodulator.prototype.setBandpass = function(bandpass) {
-    this.bandpass = bandpass;
     this.low_cut = bandpass.low_cut;
     this.high_cut = bandpass.high_cut;
     this.set();
 };
 
 Demodulator.prototype.disableBandpass = function() {
-    delete this.bandpass;
     this.low_cut = null;
     this.high_cut = null;
-    this.set()
+    this.set();
 };
 
 Demodulator.prototype.moveBandpass = function(low_new, high_new) {
@@ -410,6 +413,10 @@ Demodulator.prototype.moveBandpass = function(low_new, high_new) {
 
     // Sanity check to prevent GNU Radio "firdes check failed: fa <= fb"
     if (high_new <= this.low_cut) return;
+
+    // Save modified bandpass, but only in analog modes
+    if (!this.secondary_demod)
+        UI.saveBandpass(this.modulation, low_new, high_new);
 
     // Set new bounds
     this.low_cut  = low_new;

@@ -48,7 +48,9 @@ class ClientRegistry(object):
         pm = Config.get()
         if self.isBanned(client.conn.handler):
             raise BannedClientException()
-        elif len(self.clients) >= pm["max_clients"]:
+        elif self.clientCount() >= pm["max_clients"]:
+            raise TooManyClientsException()
+        elif self.ipCount(client) >= pm["max_clients_per_ip"]:
             raise TooManyClientsException()
         self.clients.append(client)
         self.broadcast()
@@ -56,6 +58,18 @@ class ClientRegistry(object):
 
     def clientCount(self):
         return len(self.clients)
+
+    def ipCount(self, client):
+        ip = self.getIp(client.conn.handler)
+        return len([x for x in self.clients if ip == self.getIp(x.conn.handler)])
+
+    def robotScore(self, client):
+        ip = self.getIp(client.conn.handler)
+        return sum([
+            max(0, 10 - (client.conn.startTime - x.conn.startTime).total_seconds())
+            for x in self.clients
+            if ip == self.getIp(x.conn.handler)
+        ])
 
     def removeClient(self, client):
         try:
@@ -175,6 +189,10 @@ class ClientRegistry(object):
             })
         # Done
         return result
+
+    # Ban a client for given number of minutes.
+    def banClient(self, client, minutes: int):
+        self.banIp(self.getIp(client.conn.handler), minutes)
 
     # Ban a client, by IP, for given number of minutes.
     def banIp(self, ip: str, minutes: int):

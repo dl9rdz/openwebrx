@@ -149,7 +149,7 @@ class AircraftManager(object):
         self.colors = ColorCache()
         self.aircraft = {}
         # Start periodic cleanup task
-        self.thread = threading.Thread(target=self._cleanupThread)
+        self.thread = threading.Thread(target=self._cleanupThread, name=type(self).__name__ + ".Cleanup")
         self.thread.start()
 
     # Perform periodic cleanup
@@ -550,7 +550,7 @@ class Vdl2Parser(AircraftParser):
 
 
 #
-# Parser for ADSB messages coming from Dump1090 in hexadecimal format.
+# Parser for Dump1090 JSON file containing currently tracked aircraft.
 #
 class AdsbParser(AircraftParser):
     def __init__(self, service: bool = False, jsonFile: str = "/tmp/dump1090/aircraft.json"):
@@ -559,7 +559,7 @@ class AdsbParser(AircraftParser):
         self.checkPeriod = 1
         self.lastParse = 0
         # Start periodic JSON file check
-        self.thread = threading.Thread(target=self._refreshThread)
+        self.thread = threading.Thread(target=self._refreshThread, name=type(self).__name__ + ".Refresh")
         self.thread.start()
 
     # Not parsing STDOUT
@@ -678,8 +678,10 @@ class AdsbParser(AircraftParser):
             elif "tat" in entry:
                 out["temperature"] = entry["tat"]
 
-            # Update aircraft database with the new data
-            AircraftManager.getSharedInstance().update(out)
+            # Update aircraft database
+            if AircraftManager.getSharedInstance().update(out):
+                # Report any new/updated data
+                ReportingEngine.getSharedInstance().spot(out)
 
         # Save last parsed time
         self.lastParse = now

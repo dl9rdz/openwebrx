@@ -2,8 +2,8 @@ from abc import ABC
 from owrx.modes import Modes
 from owrx.form.input.validator import Validator
 from owrx.form.input.converter import Converter, NullConverter, IntConverter, FloatConverter, EnumConverter, TextConverter
+from pycsdr.types import AgcProfile
 from enum import Enum
-
 
 class Input(ABC):
     def __init__(self, id, label, infotext=None, converter: Converter = None, validator: Validator = None, disabled=False, removable=False):
@@ -273,7 +273,9 @@ class MultiCheckboxInput(Input):
 
 class ServicesCheckboxInput(MultiCheckboxInput):
     def __init__(self, id, label, infotext=None):
-        services = [Option(s.modulation, s.name) for s in Modes.getAvailableServices()]
+        services = Modes.getAvailableServices()
+        services.sort(key = lambda x: x.name.lower())
+        services = [Option(s.modulation, s.name) for s in services]
         super().__init__(id, label, services, infotext)
 
 
@@ -333,8 +335,14 @@ class DropdownEnum(Enum):
 
 class ModesInput(DropdownInput):
     def __init__(self, id, label):
-        options = [Option(m.modulation, m.name) for m in Modes.getAvailableModes()]
+        options = [Option(m.modulation, m.name) for m in Modes.getAvailableClientModes()]
         super().__init__(id, label, options)
+
+
+class AgcInput(DropdownInput):
+    def __init__(self, id, label, infotext=None):
+        options = [Option(p.value, p.value) for p in AgcProfile]
+        super().__init__(id, label, options, infotext=infotext)
 
 
 class ExponentialInput(Input):

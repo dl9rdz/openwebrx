@@ -90,6 +90,11 @@ class GeneralSettingsController(SettingsFormController):
                     infotext="Number of people who can connect at the same time.",
                 ),
                 NumberInput(
+                    "max_clients_per_ip",
+                    "Number of clients per IP",
+                    infotext="Number of people who can connect from the same IP address.",
+                ),
+                NumberInput(
                     "keep_files",
                     "Maximum number of files",
                     infotext="Number of received images and other files to keep.",
@@ -105,6 +110,10 @@ class GeneralSettingsController(SettingsFormController):
                     "Usage policy URL",
                     infotext="Specifies web page describing receiver usage policy "
                     + "and shown when a client session times out.",
+                ),
+                CheckboxInput(
+                    "bot_ban_enabled",
+                    "Detect and ban bots trying to connect",
                 ),
                 CheckboxInput(
                     "allow_chat",
@@ -155,7 +164,14 @@ class GeneralSettingsController(SettingsFormController):
                     + "Higher values will give you a faster waterfall, but will also use more CPU.",
                     append="frames per second",
                 ),
-                NumberInput("fft_size", "FFT size", append="bins"),
+                NumberInput(
+                    "fft_size",
+                    "FFT size",
+                    infotext="This setting specifies the horizontal resolution of the waterfall. "
+                    + "Raising it higher than 16384 bins may break waterfall display on some web browsers.",
+                    append="bins",
+                    validator=RangeValidator(256, 16384),
+                ),
                 FloatInput(
                     "fft_voverlap_factor",
                     "FFT vertical overlap factor",
@@ -204,6 +220,21 @@ class GeneralSettingsController(SettingsFormController):
             ),
             Section(
                 "Display settings",
+                DropdownInput(
+                    "ui_theme",
+                    "User interface color theme",
+                    options=[
+                        Option("default", "Gray"),
+                        Option("brown", "Brown"),
+                        Option("red", "Red"),
+                        Option("green", "Green"),
+                        Option("khaki", "Khaki"),
+                        Option("blue", "Blue"),
+                        Option("navy", "Navy"),
+                        Option("black", "Black"),
+                        Option("night", "Night")
+                    ]
+                ),
                 DropdownInput(
                     "tuning_precision",
                     "Tuning precision",

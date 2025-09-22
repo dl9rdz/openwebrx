@@ -62,6 +62,7 @@ class FeatureDetector(object):
         "perseussdr": ["perseustest", "nmux"],
         "airspy": ["soapy_connector", "soapy_airspy"],
         "airspyhf": ["soapy_connector", "soapy_airspyhf"],
+        "hydrasdr": ["soapy_connector", "soapy_hydrasdr"],
         "afedri": ["soapy_connector", "soapy_afedri"],
         "lime_sdr": ["soapy_connector", "soapy_lime_sdr"],
         "fifi_sdr": ["alsa", "rockprog", "nmux"],
@@ -72,6 +73,7 @@ class FeatureDetector(object):
         "fcdpp": ["soapy_connector", "soapy_fcdpp"],
         "bladerf": ["soapy_connector", "soapy_bladerf"],
         "sddc": ["sddc_connector"],
+        "sddc_soapy": ["soapy_connector", "soapy_sddc"],
         "hpsdr": ["hpsdr_connector"],
         "runds": ["runds_connector"],
         # optional features and their requirements
@@ -82,9 +84,9 @@ class FeatureDetector(object):
         "wsjt-x-2-3": ["wsjtx_2_3"],
         "wsjt-x-2-4": ["wsjtx_2_4"],
         "msk144": ["msk144decoder"],
-        "packet": ["direwolf"],
         "sondedxl": ["sonde_dxl"],
         "sonders": ["sonde_rs"],
+        "packet": ["direwolf", "aprs_symbols"],
         "pocsag": ["digiham"],
         "js8call": ["js8", "js8py"],
         "drm": ["dream"],
@@ -104,6 +106,7 @@ class FeatureDetector(object):
         "hdradio": ["nrsc5"],
         "rigcontrol": ["hamlib"],
         "cwskimmer": ["csdr_cwskimmer"],
+        "mp3": ["lame"],
     }
 
     def feature_availability(self):
@@ -375,6 +378,13 @@ class FeatureDetector(object):
         """
         return self._has_soapy_driver("airspyhf")
 
+    def has_soapy_hydrasdr(self):
+        """
+        The [SoapySDR module for RFOne](https://github.com/hydrasdr/SoapyHydraSDR)
+        device is required for interfacing with HydraSDR RFOne devices.
+        """
+        return self._has_soapy_driver("hydrasdr")
+
     def has_soapy_afedri(self):
         """
         The [SoapyAfedri](https://github.com/alexander-sholohov/SoapyAfedri)
@@ -613,6 +623,18 @@ class FeatureDetector(object):
         """
         return self._check_connector("sddc_connector", LooseVersion("0.1"))
 
+    def has_soapy_sddc(self):
+        """
+        The [SoapySDR module for SDDC](https://github.com/ik1xpv/ExtIO_sddc)
+        devices can be used as an alternative to the `sddc_connector`, enabling
+        connectivity with SDR devices such as the RX666, RX888, HF103, etc.
+        Unlike the `sddc_connector`, the SoapySDR module relies solely on the CPU
+        and does not require an NVIDIA GPU.
+        You will need to compile SoapySDDC from source. Detailed installation
+        instructions are available on the [OpenWebRX Wiki](https://github.com/jketterl/openwebrx/wiki/SDDC-device-notes).
+        """
+        return self._has_soapy_driver("SDDC")
+
     def has_hpsdr_connector(self):
         """
         The [HPSDR Connector](https://github.com/jancona/hpsdrconnector)
@@ -745,13 +767,31 @@ class FeatureDetector(object):
         except ImportError:
             return False
 
+    def _has_acarsdec_version(self, required_version):
+        acarsdec_version_regex = re.compile("^Acarsdec\s+v?(\S+)\s+")
+        try:
+            process = subprocess.Popen(["acarsdec"], stderr=subprocess.PIPE)
+            matches = None
+            for x in range(3):
+                matches = acarsdec_version_regex.match(process.stderr.readline().decode())
+                if matches is not None:
+                    break
+            process.wait(1)
+            if matches is None:
+                return False
+            else:
+                version = LooseVersion(matches.group(1))
+                return version >= required_version
+        except Exception as e:
+            return False
+
     def has_acarsdec(self):
         """
         OpenWebRX supports decoding ACARS airplane communications by using the
         [AcarsDec](https://github.com/TLeconte/acarsdec) decoder. You can
         install the `acarsdec` package from the OpenWebRX repositories.
         """
-        return self.command_is_runnable("acarsdec --help")
+        return self._has_acarsdec_version(LooseVersion("4"))
 
     def has_imagemagick(self):
         """
@@ -802,3 +842,19 @@ class FeatureDetector(object):
         `csdr-cwskimmer` package from the OpenWebRX+ repositories.
         """
         return self.command_is_runnable("csdr-cwskimmer -h")
+
+    def has_lame(self):
+        """
+        OpenWebRX uses the [LAME](https://lame.sourceforge.io/) tool
+        to compress recorded audio into MP3 format. The `lame` package
+        is available in most Linux distributions.
+        """
+        return self.command_is_runnable("lame --help")
+
+    def has_aprs_symbols(self):
+        """
+        OpenWebRX uses a collection of APRS symbol icons to show APRS
+        traffic at the map. You can install the `aprs-symbols` package
+        from the OpenWebRX repositories.
+        """
+        return os.path.isdir("/usr/share/aprs-symbols")

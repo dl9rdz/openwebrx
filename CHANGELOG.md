@@ -1,3 +1,136 @@
+**1.2.93**
+- Added country flags to the ADSB display.
+- Fixed problem with the ADSB decoder.
+- Sorted bookmarks: blue, then yellow, then green.
+- Added ITU region-specific bookmark folders.
+- Added AAR railroad bookmarks for ITU region 2.
+- Added UCSG marine bookmarks for ITU region 2.
+- Added generic VHF marine bookmarks for regions 1/3.
+- Added Chinese PRS and SRS public radio bookmarks.
+- Added separate CB bookmarks for ITU regions 1/2.
+- Moved NOAA bookmarks to ITU region 2.
+
+**1.2.92**
+- Switched to the new AcarsDec version 4.x.
+- Extended maximum fax page length to 10000 lines.
+- Added saving user-selected bandpass settings.
+- Added [|] shortcut to clear all bandpass settings.
+- Added acarsdec and original redsea to buildall.sh.
+- Added more shortcuts to the help page.
+- Fixed JS errors when demodulator not yet set.
+- Split aircraft and satellite code from toolbox.py.
+- Removed xz requirement from packaging.
+
+**1.2.91**
+- Added option to record silence in background recording.
+- Added range check to the FFT size setting.
+- Added option to disable bot protection scheme.
+- Increased recorded MP3 file size limit to 32MB.
+- Fixed bookmarks getting snapped to nearest step.
+- Fixed waterfall theme resetting on page reload.
+- Fixed zooming with the mouse wheel.
+- Fixed HydraSDR source selection.
+
+**1.2.90**
+- Added support for the HydraSDR RFOne receiver.
+- Added back option to select initial UI theme.
+- Fixed support for 8.33kHz steps (airband).
+- Fixed clicking in the noise reduction algorithm.
+- Fixed AGC algorithm, with help from VK4DL.
+- Refactored frequency snapping code.
+
+**1.2.89**
+- Automatically banning profile-scanning robots.
+- Added message about incorrect values in forms.
+- Added wrapping long ISM values.
+
+**1.2.88**
+- Further improved noise reduction algorithm.
+- Added separate WMBus decoder using rtl-433.
+- Switched rtl-433 decoder to CF32 IQ format.
+- Removed AGC from the rtl-433 decoder input.
+- Removed 250kHz bandpass from the ISM mode.
+- Fixed CW skimmer window not showing up.
+
+**1.2.87**
+- Added file size display to the file browser.
+- Added configurable limit of clients per IP address.
+- Added configurable hang time to audio recording.
+- Reduced squelch hang time back, by public request.
+- Widened noise reduction control range to 20dB.
+- Improved noise reduction algorithm.
+- Improved SNR computation.
+
+**1.2.86**
+- Added SNR-based "smart squelch" to audio recorder.
+- Set background recording squelch to around +20dB.
+- Increased default squelch hang time to one second.
+- Disabled awkward "camera control" in Google Maps.
+- Removed NOAA-18 support (satellite decommissioned).
+- Added logo display to HDRadio stations.
+- Added 'aprs-symbols' as requirement to receive APRS.
+
+**1.2.85**
+- Added configurable DAB output rate.
+- Added configurable AGC to SSB analog modes.
+- Added LAGGY and MID AGC modes, useful for SSB.
+- Changed SSB bandpass filter to 150..2750Hz.
+
+**1.2.84**
+- Enabled ADSB updates via MQTT.
+- Added hang time to squelch to avoid dropouts.
+- Added squelch to background audio recorder.
+- Background recording squelch set via Setings.
+
+**1.2.83**
+- Added configurable image compression (Jacob Morris).
+- Added SoapySDDC RX-888 SDR source (Lax Telcel).
+- Added more Yaesu radios to APRS (Geoffrey Phillips).
+- Added Kenwood TH-D75 to APRS (Geoffrey Phillips).
+
+**1.2.82**
+- Added check for a specific end-of-fax-page marker.
+- Set default maximum fax page length to 1500.
+
+**1.2.81**
+- Now truncating FAX images as transmission ends.
+- Now saving SSTV images if at least half is received.
+- Added function to adjust image size when closing image.
+- Added configurable minimum fax length parameter.
+- Fixed error when entering profile with default digital mode.
+- Fixed noise reduction level display.
+- Refactored data recording.
+
+**1.2.80**
+- Added server-side background audio recording to MP3.
+- Audio recordings are shown at the "Files" page.
+- Audio recorder requires Linux "lame" package.
+- Sorted contents of "Files" page by creation time.
+- Sorted services in background decoding settings.
+- Moved mode requirements check from client to server.
+- Retaining underlying modulation on mode changes.
+- Fixed frequency scale background in default theme.
+- Fixed missing math import in toolbox.py.
+- Fixed typo in Northwood bookmarks.
+- Randomized web user agent string.
+- Updated NRSC5 Python library.
+
+**1.2.79**
+- Added configurable fax page length limit.
+- Added OWRX+ version to RepeaterBook agent string.
+- Shrunk SDRPlay rfgain_sel range to 0..27.
+- Refactored and improved web agents.
+- Added newer Yaesu radios to APRS (Geoffrey Phillips).
+- Fixed Leaflet geodesic line bugs (Stanislav Lechev).
+
+**1.2.78**
+- Randomized web refresh times for repeaters and receivers.
+- Introduced web refresh cutoff after several failures.
+- Added server lookup from callsigns to countries.
+- Added server lookup from MMSIs to countries.
+- Added more profiles to the default RTLSDR device.
+- Fixed NumericMapping bug.
+
 **1.2.77**
 - Refactored web data sources (EIBI, receivers, repeaters).
 - Fixed RepeaterBook updates to happen daily.

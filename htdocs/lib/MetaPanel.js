@@ -560,6 +560,7 @@ WfmMetaPanel.prototype.clear = function() {
 function HdrMetaPanel(el) {
     MetaPanel.call(this, el);
     this.modes = ['HDR'];
+    this.frequency = -1;
 
     // Create info panel
     var $container = $(
@@ -570,6 +571,7 @@ function HdrMetaPanel(el) {
             '</div>' +
             '<div class="hdr-station"></div>' +
             '<div class="hdr-message"></div>' +
+            '<div id="hdr-logo" class="hdr-image"></div>' +
             '<div class="hdr-title"></div>' +
             '<div class="hdr-artist"></div>' +
             '<div class="hdr-album"></div>' +
@@ -593,6 +595,20 @@ HdrMetaPanel.prototype = new MetaPanel();
 
 HdrMetaPanel.prototype.update = function(data) {
     if (!this.isSupported(data)) return;
+
+    // If there is an image, display it and do not parse further
+    if ('image' in data && 'data' in data) {
+        $('#hdr-logo').html(
+            '<img src="data:image/png;base64,' + data.data + '">'
+        );
+        return;
+    }
+
+    // Clear logo image when frequency changes
+    if (data.frequency != this.frequency) {
+        this.frequency = data.frequency;
+        $('#hdr-logo').html('');
+    }
 
     // Convert FCC ID to hexadecimal
     var fcc_id = '';
